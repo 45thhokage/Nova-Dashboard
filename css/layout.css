@@ -1,0 +1,240 @@
+/* App shell & staged reveal */
+.app {
+  position: relative;
+  z-index: var(--z-app);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+#app.is-ready .header,
+#app.is-ready .main {
+  animation: reveal-up var(--dur-slow) var(--ease-out) both;
+}
+
+#app.is-ready .main {
+  animation-delay: 60ms;
+}
+
+@keyframes reveal-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Header — centered search + shortcuts only; corner widgets are fixed */
+.header {
+  position: relative;
+  z-index: var(--z-header);
+  width: 100%;
+  max-width: var(--container-max);
+  margin: 0 auto;
+  padding: var(--space-6) var(--container-pad) var(--space-5);
+  display: flex;
+  justify-content: center;
+  align-items: start;
+  overflow: visible;
+}
+
+.header__center {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--header-gap);
+  width: 100%;
+  max-width: 720px;
+  overflow: visible;
+}
+
+/* Stocks: top-left, flush to the far left of the viewport */
+.header__stocks {
+  position: fixed;
+  top: max(12px, var(--space-4));
+  left: max(12px, var(--container-pad));
+  z-index: var(--z-header);
+  max-width: min(340px, calc(100vw - 24px));
+  pointer-events: auto;
+}
+
+/* Weather: flush to the far right of the viewport */
+.header__weather {
+  position: fixed;
+  top: max(12px, var(--space-4));
+  right: max(12px, var(--container-pad));
+  z-index: var(--z-header);
+  max-width: min(360px, calc(100vw - 24px));
+  pointer-events: auto;
+}
+
+@media (max-width: 900px) {
+  .header {
+    padding-top: calc(var(--space-4) + 8px);
+  }
+  /* Stack corner widgets under each other on narrow screens, still edge-pinned */
+  .header__stocks {
+    top: max(8px, var(--space-3));
+    left: max(8px, var(--space-3));
+    max-width: min(280px, calc(50vw - 16px));
+  }
+  .header__weather {
+    top: max(8px, var(--space-3));
+    right: max(8px, var(--space-3));
+    max-width: min(280px, calc(50vw - 16px));
+  }
+  .weather__trigger {
+    width: 100%;
+    max-width: 100%;
+  }
+}
+
+/* Main feed area */
+.main {
+  flex: 1;
+  width: 100%;
+  max-width: var(--container-max);
+  margin: 0 auto;
+  padding: 0 var(--container-pad) var(--space-8);
+}
+
+.feed {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-7);
+}
+
+/* Section band */
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.section__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-height: 40px;
+}
+
+.section__title {
+  font-size: var(--font-xl);
+  font-weight: var(--weight-bold);
+  letter-spacing: -0.02em;
+  line-height: var(--lh-tight);
+}
+
+.section__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.section__follow {
+  min-width: 96px;
+}
+
+.section__menu-btn,
+.section__refresh-btn {
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  transition: background var(--dur-fast), color var(--dur-fast);
+}
+.section__menu-btn:hover,
+.section__refresh-btn:hover {
+  background: var(--bg-surface-hover);
+  color: var(--text-primary);
+}
+.section__refresh-btn.is-spinning svg {
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Asymmetrical card grid */
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: var(--space-4);
+}
+
+/* Pattern variants for visual rhythm */
+.card-grid .card:nth-child(6n + 1) {
+  grid-column: span 5;
+}
+.card-grid .card:nth-child(6n + 2) {
+  grid-column: span 3;
+}
+.card-grid .card:nth-child(6n + 3) {
+  grid-column: span 4;
+}
+.card-grid .card:nth-child(6n + 4) {
+  grid-column: span 4;
+}
+.card-grid .card:nth-child(6n + 5) {
+  grid-column: span 5;
+}
+.card-grid .card:nth-child(6n + 6) {
+  grid-column: span 3;
+}
+
+/* Tall cards on certain positions */
+.card-grid .card:nth-child(6n + 2) .card__media,
+.card-grid .card:nth-child(6n + 6) .card__media {
+  aspect-ratio: 1 / 1;
+}
+.card-grid .card:nth-child(6n + 1) .card__media,
+.card-grid .card:nth-child(6n + 5) .card__media {
+  aspect-ratio: 16 / 9;
+}
+.card-grid .card:nth-child(6n + 3) .card__media,
+.card-grid .card:nth-child(6n + 4) .card__media {
+  aspect-ratio: 4 / 3;
+}
+
+@media (max-width: 960px) {
+  .card-grid {
+    grid-template-columns: repeat(6, 1fr);
+  }
+  .card-grid .card:nth-child(n) {
+    grid-column: span 3;
+  }
+  .card-grid .card:nth-child(n) .card__media {
+    aspect-ratio: 16 / 10;
+  }
+}
+
+@media (max-width: 560px) {
+  .card-grid {
+    grid-template-columns: 1fr;
+    gap: var(--space-5);
+  }
+  .card-grid .card:nth-child(n) {
+    grid-column: span 1;
+  }
+}
+
+/* Infinite scroll sentinel */
+.feed-sentinel {
+  height: 1px;
+  width: 100%;
+  pointer-events: none;
+}
+
+.feed-empty {
+  text-align: center;
+  padding: var(--space-8) var(--space-4);
+  color: var(--text-tertiary);
+  font-size: var(--font-md);
+}
