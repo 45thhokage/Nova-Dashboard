@@ -133,6 +133,15 @@ function renderBody(body, onChange) {
     )
   );
 
+  // ── Quick search (optional tabs / bookmarks permissions) ─
+  body.append(
+    section(
+      'Quick Search',
+      'The search icon in the bottom-left toolbar can match open tabs and bookmarks. Both are off by default and require an explicit Chrome permission grant.',
+      buildQuickSearchSettings(cfg, onChange)
+    )
+  );
+
   // ── Topics ────────────────────────────────────────────
   body.append(
     section(
@@ -175,6 +184,118 @@ function buildFeedsPointer() {
   return wrap;
 }
 
+/**
+ * Optional-permission toggles for local quick-search sources.
+ * chrome.permissions.request MUST run inside the click/change gesture.
+ */
+function buildQuickSearchSettings(cfg, onChange) {
+  const qs = cfg.quickSearch || {};
+  const wrap = el('div');
+
+  const tabsNote = el('p', {
+    className: 'settings-row__hint settings-perm-note',
+    hidden: true,
+    text: 'Permission denied — open tabs won’t be searched. You can enable this again anytime.',
+  });
+  const bmNote = el('p', {
+    className: 'settings-row__hint settings-perm-note',
+    hidden: true,
+    text: 'Permission denied — bookmarks won’t be searched. You can enable this again anytime.',
+  });
+
+  const tabsRow = rowToggle(
+    'Search my open tabs',
+    !!qs.searchTabs,
+    async (want, input) => {
+      tabsNote.hidden = true;
+      if (want) {
+        const granted = await requestOptionalPermission('tabs');
+        if (!granted) {
+          input.checked = false;
+          tabsNote.hidden = false;
+          updateConfig((c) => ({
+            ...c,
+            quickSearch: { ...(c.quickSearch || {}), searchTabs: false },
+          }));
+          return;
+        }
+      }
+      updateConfig((c) => ({
+        ...c,
+        quickSearch: { ...(c.quickSearch || {}), searchTabs: want },
+      }));
+      onChange?.('quickSearch');
+    },
+    'Requires the optional “tabs” permission when turned on'
+  );
+
+  const bmRow = rowToggle(
+    'Search my bookmarks',
+    !!qs.searchBookmarks,
+    async (want, input) => {
+      bmNote.hidden = true;
+      if (want) {
+        const granted = await requestOptionalPermission('bookmarks');
+        if (!granted) {
+          input.checked = false;
+          bmNote.hidden = false;
+          updateConfig((c) => ({
+            ...c,
+            quickSearch: { ...(c.quickSearch || {}), searchBookmarks: false },
+          }));
+          return;
+        }
+      }
+      updateConfig((c) => ({
+        ...c,
+        quickSearch: { ...(c.quickSearch || {}), searchBookmarks: want },
+      }));
+      onChange?.('quickSearch');
+    },
+    'Requires the optional “bookmarks” permission when turned on'
+  );
+
+  wrap.append(tabsRow, tabsNote, bmRow, bmNote);
+
+  // Reconcile UI if user revoked permissions from chrome://extensions
+  reconcilePermissionToggle(tabsRow, 'tabs', 'searchTabs', tabsNote);
+  reconcilePermissionToggle(bmRow, 'bookmarks', 'searchBookmarks', bmNote);
+
+  return wrap;
+}
+
+async function requestOptionalPermission(name) {
+  try {
+    if (!chrome?.permissions?.request) return false;
+    return await chrome.permissions.request({ permissions: [name] });
+  } catch (e) {
+    console.warn('[candy] permission request failed', name, e);
+    return false;
+  }
+}
+
+async function reconcilePermissionToggle(row, permName, configKey, noteEl) {
+  const input = row.querySelector('input[type="checkbox"]');
+  if (!input || !input.checked) return;
+  try {
+    const has = await chrome.permissions.contains({ permissions: [permName] });
+    if (!has) {
+      input.checked = false;
+      updateConfig((c) => ({
+        ...c,
+        quickSearch: { ...(c.quickSearch || {}), [configKey]: false },
+      }));
+      if (noteEl) {
+        noteEl.textContent =
+          'Permission was revoked in Chrome settings — this source is disabled.';
+        noteEl.hidden = false;
+      }
+    }
+  } catch {
+    /* ignore outside extension context */
+  }
+}
+
 function section(title, desc, content) {
   const s = el('section', { className: 'settings-section' }, [
     el('h3', { className: 'settings-section__title', text: title }),
@@ -196,7 +317,9 @@ function rowToggle(label, checked, onToggle, hint) {
     el('input', { type: 'checkbox', id, checked: checked ? true : undefined }),
     el('span', { className: 'switch__track' }),
   ]);
-  sw.querySelector('input').addEventListener('change', (e) => onToggle(e.target.checked));
+  const input = sw.querySelector('input');
+  // Pass the input so callers can revert after a denied permission prompt
+  input.addEventListener('change', (e) => onToggle(e.target.checked, input));
   row.append(left, sw);
   return row;
 }

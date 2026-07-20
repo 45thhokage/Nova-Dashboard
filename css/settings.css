@@ -131,6 +131,18 @@
   min-width: 0;
 }
 
+.settings-perm-note {
+  margin: -4px 0 var(--space-2);
+  padding: 0 0 var(--space-2);
+  color: var(--danger);
+  font-size: var(--font-xs);
+  line-height: var(--lh-normal);
+}
+
+.settings-perm-note[hidden] {
+  display: none;
+}
+
 .settings-row select.field__select {
   width: auto;
   min-width: 120px;

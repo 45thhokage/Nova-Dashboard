@@ -13,7 +13,7 @@ import {
 } from '../news/news.js';
 import { getCachedImageUrl } from '../storage/cache-api.js';
 import { getCachedFavicon, ensureFavicon } from '../favicon.js';
-import { el } from '../utils.js';
+import { el, safeHttpUrl } from '../utils.js';
 
 const PAGE_SIZE = 12;
 /** @type {Map<string, { articles: any[], page: number, hasMore: boolean }>} */
@@ -171,10 +171,11 @@ function buildCard(article, { isNew = false } = {}) {
     dataset: { id: article.id },
   });
 
+  const href = safeHttpUrl(article.url) || '#';
   const link = el('a', {
     className: 'card__link',
-    href: article.url,
-    target: '_blank',
+    href,
+    target: href === '#' ? undefined : '_blank',
     rel: 'noopener noreferrer',
   });
 
@@ -282,17 +283,24 @@ function mergeSectionUpdate(categoryId, result, { replace = false } = {}) {
   sectionState.set(categoryId, state);
 }
 
+/** Single observer reused across feed re-inits */
+let feedIo = null;
+
 function observeSentinel(sentinel) {
   if (!('IntersectionObserver' in window)) return;
-  const io = new IntersectionObserver(
-    (entries) => {
-      for (const entry of entries) {
-        if (entry.isIntersecting) loadMoreNearBottom();
-      }
-    },
-    { rootMargin: '400px 0px' }
-  );
-  io.observe(sentinel);
+  if (!feedIo) {
+    feedIo = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) loadMoreNearBottom();
+        }
+      },
+      { rootMargin: '400px 0px' }
+    );
+  } else {
+    feedIo.disconnect();
+  }
+  feedIo.observe(sentinel);
 }
 
 function loadMoreNearBottom() {

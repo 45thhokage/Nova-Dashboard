@@ -1,5 +1,5 @@
 /**
- * Nova New Tab — orchestrator.
+ * Candy New Tab — orchestrator.
  *
  * Staged reveal pipeline:
  * 1. Sync config from localStorage (block one)
@@ -14,6 +14,7 @@
 import { getConfig } from './config.js';
 import { prepareWallpaper } from './wallpaper.js';
 import { initSearch } from './ui/search.js';
+import { initQuickSearch } from './ui/quick-search.js';
 import { initShortcuts } from './ui/shortcuts.js';
 import { initWeatherWidget } from './ui/weather-widget.js';
 import { initStocksWidget } from './ui/stocks-widget.js';
@@ -68,6 +69,10 @@ async function main() {
   // Fixed chrome toolbar (handlers only — markup is already painted)
   initChromeToolbar();
 
+  // Quick-search overlay: handlers only — icon + overlay DOM are static in HTML.
+  // No tabs/bookmarks API calls here (those run when the overlay actually opens).
+  initQuickSearch();
+
   // Settings drawer
   initSettings({
     onChange: async (what) => {
@@ -86,6 +91,9 @@ async function main() {
       }
       if (what === 'wallpaper') {
         /* applied live in settings */
+      }
+      if (what === 'quickSearch') {
+        /* permission + config already applied in settings; overlay re-checks on open */
       }
     },
   });

@@ -3,7 +3,7 @@
  * Parsed in the extension; images/favicons cached via Cache API / IDB.
  */
 
-import { uid, hostFromUrl } from '../utils.js';
+import { uid, hostFromUrl, safeHttpUrl } from '../utils.js';
 
 const GOOGLE_NEWS_RSS = (query) =>
   `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=en-US&gl=US&ceid=US:en`;
@@ -21,9 +21,14 @@ export async function fetchCategoryArticles(categoryId, query, { limit = 24 } = 
 
   const now = Date.now();
   return items.slice(0, limit).map((item) => {
-    const link = item.link || item.guid || '';
+    const link =
+      safeHttpUrl(item.link) ||
+      safeHttpUrl(item.guid) ||
+      '';
     const publisher = item.source || hostFromUrl(link) || 'News';
-    const publisherHost = hostFromUrl(item.sourceUrl || link) || publisher.toLowerCase().replace(/\s+/g, '');
+    const publisherHost =
+      hostFromUrl(safeHttpUrl(item.sourceUrl) || link) ||
+      publisher.toLowerCase().replace(/\s+/g, '');
     return {
       id: hashId(categoryId, link || item.title),
       categoryId,
@@ -32,7 +37,7 @@ export async function fetchCategoryArticles(categoryId, query, { limit = 24 } = 
       guid: item.guid || link,
       publisher,
       publisherHost,
-      imageUrl: item.image || null,
+      imageUrl: safeHttpUrl(item.image) || null,
       publishedAt: item.pubDate ? Date.parse(item.pubDate) || now : now,
       fetchedAt: now,
       duration: item.duration || null, // optional badge

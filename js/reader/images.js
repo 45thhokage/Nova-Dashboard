@@ -3,6 +3,8 @@
  * Large tries hard for original / full-size art (og:image, URL upgrades, page scrape).
  */
 
+import { safeHttpUrl } from '../utils.js';
+
 export const IMAGE_QUALITY = {
   SMALL: 'small',
   MEDIUM: 'medium',
@@ -38,8 +40,8 @@ export function normalizeImageQuality(q) {
  */
 export async function resolveItemImage(item, quality = 'medium') {
   const q = normalizeImageQuality(quality);
-  const feedImg = item.imageUrl || null;
-  const pageUrl = item.url || null;
+  const feedImg = safeHttpUrl(item.imageUrl) || null;
+  const pageUrl = safeHttpUrl(item.url) || null;
 
   if (q === 'small') {
     // Use feed-provided image only; optionally strip nothing — keep as-is
@@ -251,7 +253,7 @@ export async function fetchPageImages(pageUrl, { preferLarge = true } = {}) {
       headers: {
         Accept: 'text/html,application/xhtml+xml',
         // Some CDNs soft-block empty UA
-        'User-Agent': 'NovaFeedReader/1.0',
+        'User-Agent': 'CandyFeedReader/1.0',
       },
     });
     if (!res.ok) return null;
@@ -367,11 +369,7 @@ function attr(attrs, name) {
 
 function absolutize(url, base) {
   if (!url) return url;
-  try {
-    return new URL(url, base || undefined).href;
-  } catch {
-    return url;
-  }
+  return safeHttpUrl(url, base || undefined) || null;
 }
 
 /**

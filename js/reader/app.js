@@ -26,7 +26,7 @@ import {
 } from './settings.js';
 import { IMAGE_QUALITY_OPTIONS, normalizeImageQuality } from './images.js';
 import { getCachedImageUrl } from '../storage/cache-api.js';
-import { el, relativeTime, hostFromUrl, uid } from '../utils.js';
+import { el, relativeTime, hostFromUrl, uid, safeHttpUrl } from '../utils.js';
 import { placeholderImage } from '../news/feeds.js';
 
 let activeFeedId = null; // null = all
@@ -239,10 +239,11 @@ function buildItem(item, isGrid) {
     .filter(Boolean)
     .join(' ');
 
+  const href = safeHttpUrl(item.url) || '#';
   const link = el('a', {
     className: classes,
-    href: item.url || '#',
-    target: '_blank',
+    href,
+    target: href === '#' ? undefined : '_blank',
     rel: 'noopener noreferrer',
     dataset: { id: item.id },
   }, [

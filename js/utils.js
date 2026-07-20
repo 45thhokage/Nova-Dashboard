@@ -46,6 +46,25 @@ export function normalizeUrl(input) {
 }
 
 /**
+ * Allow only http(s) absolute URLs. Rejects javascript:, data:, etc.
+ * Optional base resolves relative feed links against the feed/site URL.
+ * @returns {string|null}
+ */
+export function safeHttpUrl(input, base) {
+  if (input == null) return null;
+  const s = String(input).trim();
+  if (!s) return null;
+  if (/^(javascript|data|vbscript|file|blob):/i.test(s)) return null;
+  try {
+    const u = base ? new URL(s, base) : new URL(s);
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') return null;
+    return u.href;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Detect whether input is a navigable address vs search query.
  * Protocol or dotted host → navigate; else search.
  */

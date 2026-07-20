@@ -20,6 +20,7 @@ import {
 
 let dragSym = null;
 let adding = false;
+let listenersBound = false;
 
 export async function initStocksWidget() {
   const root = document.getElementById('stocks-root');
@@ -36,12 +37,16 @@ export async function initStocksWidget() {
   const cache = await getStocksForRender();
   render(root, cache);
 
-  onStocksUpdate((next) => {
-    if (!document.getElementById('stocks-root')) return;
-    // Don't clobber an open "add" input mid-type unless forced empty
-    if (adding) return;
-    render(root, next);
-  });
+  if (!listenersBound) {
+    listenersBound = true;
+    onStocksUpdate((next) => {
+      const r = document.getElementById('stocks-root');
+      if (!r) return;
+      // Don't clobber an open "add" input mid-type unless forced empty
+      if (adding) return;
+      render(r, next);
+    });
+  }
 
   // Background refresh after paint — never on the critical path
   refreshStocksInBackground().catch(() => {});

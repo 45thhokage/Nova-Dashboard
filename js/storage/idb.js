@@ -62,18 +62,29 @@ function openDb() {
   return dbPromise;
 }
 
-function tx(storeName, mode = 'readonly') {
-  return openDb().then((db) => {
-    const t = db.transaction(storeName, mode);
-    return t.objectStore(storeName);
-  });
-}
-
-function reqToPromise(req) {
-  return new Promise((resolve, reject) => {
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
+/** Run get/put in the same turn as transaction() so the tx stays active. */
+function withStore(storeName, mode, fn) {
+  return openDb().then(
+    (db) =>
+      new Promise((resolve, reject) => {
+        const t = db.transaction(storeName, mode);
+        const store = t.objectStore(storeName);
+        let req;
+        try {
+          req = fn(store, t);
+        } catch (e) {
+          reject(e);
+          return;
+        }
+        if (req && typeof req === 'object' && 'onsuccess' in req) {
+          req.onsuccess = () => resolve(req.result);
+          req.onerror = () => reject(req.error);
+        } else {
+          t.oncomplete = () => resolve(req);
+          t.onerror = () => reject(t.error);
+        }
+      })
+  );
 }
 
 // ── Articles ──────────────────────────────────────────────
@@ -107,13 +118,11 @@ export async function putArticles(articles) {
 }
 
 export async function getCategoryMeta(categoryId) {
-  const store = await tx('category_meta');
-  return reqToPromise(store.get(categoryId));
+  return withStore('category_meta', 'readonly', (store) => store.get(categoryId));
 }
 
 export async function setCategoryMeta(meta) {
-  const store = await tx('category_meta', 'readwrite');
-  return reqToPromise(store.put(meta));
+  return withStore('category_meta', 'readwrite', (store) => store.put(meta));
 }
 
 export async function clearArticles() {
@@ -130,16 +139,14 @@ export async function clearArticles() {
 // ── Weather (atomic write of full blob) ───────────────────
 
 export async function getWeatherCache() {
-  const store = await tx('weather');
-  return reqToPromise(store.get('current'));
+  return withStore('weather', 'readonly', (store) => store.get('current'));
 }
 
 /**
  * Atomic write: current + forecast + timestamp + provider in one put.
  */
 export async function setWeatherCache(data) {
-  const store = await tx('weather', 'readwrite');
-  return reqToPromise(
+  return withStore('weather', 'readwrite', (store) =>
     store.put({
       id: 'current',
       ...data,
@@ -149,45 +156,40 @@ export async function setWeatherCache(data) {
 }
 
 export async function clearWeatherCache() {
-  const store = await tx('weather', 'readwrite');
-  return reqToPromise(store.clear());
+  return withStore('weather', 'readwrite', (store) => store.clear());
 }
 
 // ── Favicons ──────────────────────────────────────────────
 
 export async function getFavicon(host) {
-  const store = await tx('favicons');
-  return reqToPromise(store.get(host));
+  return withStore('favicons', 'readonly', (store) => store.get(host));
 }
 
 export async function putFavicon(host, dataUrl) {
-  const store = await tx('favicons', 'readwrite');
-  return reqToPromise(
+  return withStore('favicons', 'readwrite', (store) =>
     store.put({ host, dataUrl, cachedAt: Date.now() })
   );
 }
 
 export async function clearFavicons() {
-  const store = await tx('favicons', 'readwrite');
-  return reqToPromise(store.clear());
+  return withStore('favicons', 'readwrite', (store) => store.clear());
 }
 
 // ── Feed reader subscriptions & items ─────────────────────
 
 export async function getAllSubscriptions() {
-  const store = await tx('feed_subscriptions');
-  const rows = await reqToPromise(store.getAll());
+  const rows = await withStore('feed_subscriptions', 'readonly', (store) =>
+    store.getAll()
+  );
   return (rows || []).sort((a, b) => (a.addedAt || 0) - (b.addedAt || 0));
 }
 
 export async function getSubscription(id) {
-  const store = await tx('feed_subscriptions');
-  return reqToPromise(store.get(id));
+  return withStore('feed_subscriptions', 'readonly', (store) => store.get(id));
 }
 
 export async function putSubscription(sub) {
-  const store = await tx('feed_subscriptions', 'readwrite');
-  return reqToPromise(store.put(sub));
+  return withStore('feed_subscriptions', 'readwrite', (store) => store.put(sub));
 }
 
 export async function deleteSubscription(id) {
@@ -252,20 +254,21 @@ export async function putFeedItems(items) {
 }
 
 export async function getFeedMeta(feedId) {
-  const store = await tx('feed_meta');
-  return reqToPromise(store.get(feedId));
+  return withStore('feed_meta', 'readonly', (store) => store.get(feedId));
 }
 
 export async function setFeedMeta(meta) {
-  const store = await tx('feed_meta', 'readwrite');
-  return reqToPromise(store.put(meta));
+  return withStore('feed_meta', 'readwrite', (store) => store.put(meta));
 }
+
+/** Composed reader view key — must clear with items or Clear Cache leaves ghosts */
+const FEED_READER_VIEW_KEY = 'feed_reader_view';
 
 /** Clear cached feed items only — keeps subscriptions */
 export async function clearFeedItemsCache() {
   const db = await openDb();
   return new Promise((resolve, reject) => {
-    const names = ['feed_items', 'feed_meta'].filter((n) =>
+    const names = ['feed_items', 'feed_meta', 'kv'].filter((n) =>
       db.objectStoreNames.contains(n)
     );
     if (!names.length) {
@@ -273,7 +276,16 @@ export async function clearFeedItemsCache() {
       return;
     }
     const t = db.transaction(names, 'readwrite');
-    for (const n of names) t.objectStore(n).clear();
+    if (db.objectStoreNames.contains('feed_items')) {
+      t.objectStore('feed_items').clear();
+    }
+    if (db.objectStoreNames.contains('feed_meta')) {
+      t.objectStore('feed_meta').clear();
+    }
+    // Drop composed view only — leave other kv (wallpaper, stocks, etc.)
+    if (db.objectStoreNames.contains('kv')) {
+      t.objectStore('kv').delete(FEED_READER_VIEW_KEY);
+    }
     t.oncomplete = () => resolve();
     t.onerror = () => reject(t.error);
   });
@@ -282,19 +294,16 @@ export async function clearFeedItemsCache() {
 // ── KV helpers ────────────────────────────────────────────
 
 export async function kvGet(key) {
-  const store = await tx('kv');
-  const row = await reqToPromise(store.get(key));
+  const row = await withStore('kv', 'readonly', (store) => store.get(key));
   return row?.value;
 }
 
 export async function kvSet(key, value) {
-  const store = await tx('kv', 'readwrite');
-  return reqToPromise(store.put({ key, value }));
+  return withStore('kv', 'readwrite', (store) => store.put({ key, value }));
 }
 
 export async function kvDelete(key) {
-  const store = await tx('kv', 'readwrite');
-  return reqToPromise(store.delete(key));
+  return withStore('kv', 'readwrite', (store) => store.delete(key));
 }
 
 // ── Size accounting ───────────────────────────────────────

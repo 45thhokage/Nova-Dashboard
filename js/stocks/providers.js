@@ -38,12 +38,12 @@ export function normalizeSymbol(raw) {
 export function classifyAsset(symbol) {
   const s = normalizeSymbol(symbol);
   if (!s) return 'equity';
-  if (s.includes('-') || s.endsWith('USD') && /^[A-Z]{2,6}(-USD)?$/.test(s)) {
-    // BTC-USD, ETH-USD, or bare BTC when paired style
-    const base = s.replace(/-USD$/, '').replace(/USD$/, '');
-    if (COINGECKO_IDS[base] || s.includes('-')) return 'crypto';
-  }
   if (s.startsWith('^')) return 'index';
+  // Crypto only: known CoinGecko base, or BASE-USD where BASE is mapped
+  // (do not treat BRK-B / equity class shares as crypto)
+  const usdPair = s.match(/^([A-Z0-9]{2,10})-USD$/);
+  if (usdPair && COINGECKO_IDS[usdPair[1]]) return 'crypto';
+  if (COINGECKO_IDS[s]) return 'crypto';
   return 'equity';
 }
 

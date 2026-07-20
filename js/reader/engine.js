@@ -43,14 +43,14 @@ export async function loadReaderFromCache({ feedId = null } = {}) {
   const ageCutoff = Date.now() - maxAgeMs(settings);
 
   if (!feedId) {
+    const all = await getFeedItems(null);
     let view = await getStoredView();
-    // Cold start: build view from raw items if empty
-    if (!view?.items?.length) {
-      const all = await getFeedItems(null);
+    // Cold start, empty cache, or stale composed view after Clear Cache
+    if (!view?.items?.length || (all.length === 0 && view.items.length > 0)) {
       view = await recomputeAndStoreView(all, subs);
     }
     // Counts: prefer stored; fall back to counting
-    const counts = view.counts || countByFeed(await getFeedItems(null), ageCutoff, subs);
+    const counts = view.counts || countByFeed(all, ageCutoff, subs);
     return {
       subscriptions: subs,
       items: view.items || [],
@@ -159,17 +159,28 @@ export async function pruneAndRecompose() {
   return recomputeAndStoreView(keep, subs);
 }
 
+/** Serialize full-store replace so overlapping prune/refresh cannot drop items */
+let replaceQueue = Promise.resolve();
+
 async function replaceAllFeedItems(items) {
-  const { openDb } = await import('../storage/idb.js');
-  const db = await openDb();
-  return new Promise((resolve, reject) => {
-    const t = db.transaction('feed_items', 'readwrite');
-    const store = t.objectStore('feed_items');
-    store.clear();
-    for (const item of items) store.put(item);
-    t.oncomplete = () => resolve();
-    t.onerror = () => reject(t.error);
-  });
+  const run = async () => {
+    const { openDb } = await import('../storage/idb.js');
+    const db = await openDb();
+    return new Promise((resolve, reject) => {
+      const t = db.transaction('feed_items', 'readwrite');
+      const store = t.objectStore('feed_items');
+      store.clear();
+      for (const item of items) store.put(item);
+      t.oncomplete = () => resolve();
+      t.onerror = () => reject(t.error);
+    });
+  };
+  const next = replaceQueue.then(run, run);
+  replaceQueue = next.then(
+    () => {},
+    () => {}
+  );
+  return next;
 }
 
 /**
@@ -508,7 +519,7 @@ export async function exportOpml() {
   return `<?xml version="1.0" encoding="UTF-8"?>
 <opml version="2.0">
   <head>
-    <title>Nova Feeds</title>
+    <title>Candy Feeds</title>
     <dateCreated>${new Date().toUTCString()}</dateCreated>
   </head>
   <body>

@@ -5,6 +5,7 @@
 
 import { fetchWeather } from '../js/weather/providers.js';
 import { fetchQuote, normalizeSymbol, isCryptoSymbol } from '../js/stocks/providers.js';
+import { openDb } from '../js/storage/idb.js';
 
 const WEATHER_ALARM = 'candy-weather-refresh';
 const STOCKS_ALARM = 'candy-stocks-refresh';
@@ -16,50 +17,6 @@ const INTERVAL_MARKET_MS = 12 * 60_000;
 const INTERVAL_OFF_MS = 210 * 60_000;
 const INTERVAL_CRYPTO_MS = 12 * 60_000;
 const INTERVAL_STOOQ_MS = 180 * 60_000;
-
-// Mirror minimal IDB access in SW (same DB)
-const DB_NAME = 'candy_db';
-const DB_VERSION = 2;
-
-function openDb() {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, DB_VERSION);
-    req.onerror = () => reject(req.error);
-    req.onsuccess = () => resolve(req.result);
-    req.onupgradeneeded = (e) => {
-      const db = e.target.result;
-      if (!db.objectStoreNames.contains('weather')) {
-        db.createObjectStore('weather', { keyPath: 'id' });
-      }
-      if (!db.objectStoreNames.contains('kv')) {
-        db.createObjectStore('kv', { keyPath: 'key' });
-      }
-      if (!db.objectStoreNames.contains('articles')) {
-        const articles = db.createObjectStore('articles', { keyPath: 'id' });
-        articles.createIndex('by_category', 'categoryId', { unique: false });
-      }
-      if (!db.objectStoreNames.contains('category_meta')) {
-        db.createObjectStore('category_meta', { keyPath: 'categoryId' });
-      }
-      if (!db.objectStoreNames.contains('favicons')) {
-        db.createObjectStore('favicons', { keyPath: 'host' });
-      }
-      if (!db.objectStoreNames.contains('feed_subscriptions')) {
-        const subs = db.createObjectStore('feed_subscriptions', { keyPath: 'id' });
-        subs.createIndex('by_url', 'url', { unique: true });
-      }
-      if (!db.objectStoreNames.contains('feed_items')) {
-        const items = db.createObjectStore('feed_items', { keyPath: 'id' });
-        items.createIndex('by_feed', 'feedId', { unique: false });
-        items.createIndex('by_guid', 'guid', { unique: false });
-        items.createIndex('by_published', 'publishedAt', { unique: false });
-      }
-      if (!db.objectStoreNames.contains('feed_meta')) {
-        db.createObjectStore('feed_meta', { keyPath: 'feedId' });
-      }
-    };
-  });
-}
 
 async function idbGet(storeName, key) {
   const db = await openDb();

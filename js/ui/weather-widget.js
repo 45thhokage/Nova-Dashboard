@@ -13,6 +13,7 @@ import {
 import { el, relativeTime } from '../utils.js';
 
 let popoverOpen = false;
+let listenersBound = false;
 
 export async function initWeatherWidget() {
   const root = document.getElementById('weather-root');
@@ -21,20 +22,25 @@ export async function initWeatherWidget() {
   const cached = await getWeatherForRender();
   render(root, cached);
 
-  onWeatherUpdate((data) => {
-    if (!popoverOpen) render(root, data);
-    else render(root, data, { keepPopover: true });
-  });
+  if (!listenersBound) {
+    listenersBound = true;
+    onWeatherUpdate((data) => {
+      const r = document.getElementById('weather-root');
+      if (!r) return;
+      if (!popoverOpen) render(r, data);
+      else render(r, data, { keepPopover: true });
+    });
 
-  // Close popover on outside click
-  document.addEventListener('mousedown', (e) => {
-    if (!popoverOpen) return;
-    if (!root.contains(e.target)) {
+    // Close popover on outside click
+    document.addEventListener('mousedown', (e) => {
+      if (!popoverOpen) return;
+      const r = document.getElementById('weather-root');
+      if (!r || r.contains(e.target)) return;
       popoverOpen = false;
-      const pop = root.querySelector('.weather__popover');
+      const pop = r.querySelector('.weather__popover');
       if (pop) pop.hidden = true;
-    }
-  });
+    });
+  }
 }
 
 function render(root, raw, { keepPopover = false } = {}) {

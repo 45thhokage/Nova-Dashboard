@@ -5,8 +5,25 @@
 const CACHE_IMAGES = 'candy-images-v1';
 const CACHE_WALLPAPERS = 'candy-wallpapers-v1';
 
+/** source URL → active blob: URL (revoke on replace to avoid leaks) */
+const liveBlobUrls = new Map();
+
 async function open(name) {
   return caches.open(name);
+}
+
+function blobUrlFor(sourceUrl, blob) {
+  const prev = liveBlobUrls.get(sourceUrl);
+  if (prev) {
+    try {
+      URL.revokeObjectURL(prev);
+    } catch {
+      /* ignore */
+    }
+  }
+  const next = URL.createObjectURL(blob);
+  liveBlobUrls.set(sourceUrl, next);
+  return next;
 }
 
 /**
@@ -17,14 +34,13 @@ export async function cacheImage(url, { cacheName = CACHE_IMAGES } = {}) {
   if (!url) return null;
   try {
     const cache = await open(cacheName);
-    const key = new Request(url, { mode: 'no-cors' });
 
     // Try match first (cors mode for readable body when possible)
     let match = await cache.match(url);
     if (match) {
       try {
         const blob = await match.blob();
-        if (blob.size > 0) return URL.createObjectURL(blob);
+        if (blob.size > 0) return blobUrlFor(url, blob);
       } catch {
         /* fall through */
       }
@@ -48,7 +64,7 @@ export async function cacheImage(url, { cacheName = CACHE_IMAGES } = {}) {
       if (response.type !== 'opaque' && response.ok) {
         await cache.put(url, response.clone());
         const blob = await response.blob();
-        if (blob.size > 0) return URL.createObjectURL(blob);
+        if (blob.size > 0) return blobUrlFor(url, blob);
       } else if (response.type === 'opaque') {
         await cache.put(url, response.clone());
         // Opaque — can't create object URL reliably; use original
@@ -75,7 +91,7 @@ export async function getCachedImageUrl(url) {
     const match = await cache.match(url);
     if (match) {
       const blob = await match.blob();
-      if (blob.size > 0) return URL.createObjectURL(blob);
+      if (blob.size > 0) return blobUrlFor(url, blob);
     }
   } catch {
     /* ignore */

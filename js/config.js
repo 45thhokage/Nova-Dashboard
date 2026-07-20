@@ -95,6 +95,12 @@ export function createDefaultConfig() {
       pageSize: 12,
     },
     weatherCacheTtlMinutes: 10,
+    /** Quick-search overlay — local sources need optional permissions */
+    quickSearch: {
+      searchTabs: false,
+      searchBookmarks: false,
+      lastProviderId: 'chatgpt',
+    },
   };
 }
 
@@ -135,6 +141,7 @@ function deepMerge(base, override) {
   if (!override || typeof override !== 'object') return base;
   const out = Array.isArray(base) ? [...base] : { ...base };
   for (const key of Object.keys(override)) {
+    if (key === '__proto__' || key === 'constructor' || key === 'prototype') continue;
     const bv = base[key];
     const ov = override[key];
     if (

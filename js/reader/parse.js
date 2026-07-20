@@ -3,7 +3,7 @@
  * Normalizes into { feed, items[] }.
  */
 
-import { hostFromUrl } from '../utils.js';
+import { hostFromUrl, safeHttpUrl } from '../utils.js';
 import { collectMediaCandidates, pickFeedImage } from './images.js';
 
 /**
@@ -27,6 +27,7 @@ export function parseFeedText(text, { contentType = '', sourceUrl = '' } = {}) {
   const trimmed = (text || '').trim();
   if (!trimmed) throw new Error('Empty response');
 
+  let parsed;
   // JSON Feed
   if (
     contentType.includes('json') ||
@@ -34,7 +35,7 @@ export function parseFeedText(text, { contentType = '', sourceUrl = '' } = {}) {
     trimmed.startsWith('[')
   ) {
     try {
-      return parseJsonFeed(JSON.parse(trimmed), sourceUrl);
+      parsed = parseJsonFeed(JSON.parse(trimmed), sourceUrl);
     } catch (e) {
       if (contentType.includes('json') || trimmed.startsWith('{')) {
         throw new Error(`JSON Feed parse failed: ${e.message}`);
@@ -43,7 +44,27 @@ export function parseFeedText(text, { contentType = '', sourceUrl = '' } = {}) {
     }
   }
 
-  return parseXmlFeed(trimmed, sourceUrl);
+  if (!parsed) parsed = parseXmlFeed(trimmed, sourceUrl);
+  return sanitizeParsedFeed(parsed, sourceUrl);
+}
+
+/** Drop non-http(s) item/site/image URLs from remote feed markup */
+function sanitizeParsedFeed(parsed, sourceUrl) {
+  const base = safeHttpUrl(sourceUrl) || undefined;
+  if (parsed.feed) {
+    parsed.feed.siteUrl =
+      safeHttpUrl(parsed.feed.siteUrl, base) || base || parsed.feed.siteUrl || '';
+    parsed.feed.image = safeHttpUrl(parsed.feed.image, base);
+  }
+  parsed.items = (parsed.items || []).map((item) => ({
+    ...item,
+    url: safeHttpUrl(item.url, base) || '',
+    imageUrl: safeHttpUrl(item.imageUrl, base),
+    imageCandidates: (item.imageCandidates || [])
+      .map((u) => safeHttpUrl(u, base))
+      .filter(Boolean),
+  }));
+  return parsed;
 }
 
 function parseJsonFeed(data, sourceUrl) {
