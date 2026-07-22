@@ -2,9 +2,9 @@
 
 # Nova-Dashboard — New Tab Dashboard
 
-![Version](...)
-![Manifest](...)
-![License](...)
+![Version](https://img.shields.io/badge/version-1.2.1-7c6af7?style=flat-square)
+![Manifest](https://img.shields.io/badge/manifest-v3-blue?style=flat-square)
+![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)
 
 **A fast, dark-themed new tab dashboard with news, weather, stocks, RSS reader, and offline-first caching.**
 
