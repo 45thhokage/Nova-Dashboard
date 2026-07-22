@@ -1,7 +1,9 @@
- ## Nova-Dashboard — New Tab Dashboard  
-
-
 <div align="center">
+ 
+# Nova-Dashboard — New Tab Dashboard  
+
+
+
 
 ![Version](https://img.shields.io/badge/version-1.2.1-7c6af7?style=flat-square)
 ![Manifest](https://img.shields.io/badge/manifest-v3-blue?style=flat-square)
@@ -11,7 +13,7 @@
 
 ✨ *Transform your new tab experience with elegance and performance* ✨
 
-</div>
+<div align="center">
 
 ---
 
