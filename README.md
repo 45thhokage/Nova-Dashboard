@@ -13,7 +13,7 @@
 
 ✨ *Transform your new tab experience with elegance and performance* ✨
 
-<div align="center">
+<div>
 
 ---
 
