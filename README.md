@@ -1,4 +1,4 @@
-# Nova-Dashboard — New Tab Dashboard
+        # Nova-Dashboard — New Tab Dashboard
 
 <div align="center">
 
