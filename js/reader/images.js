@@ -3,7 +3,7 @@
  * Large tries hard for original / full-size art (og:image, URL upgrades, page scrape).
  */
 
-import { safeHttpUrl } from '../utils.js';
+import { safeHttpUrl, decodeHtmlEntities } from '../utils.js';
 
 export const IMAGE_QUALITY = {
   SMALL: 'small',
@@ -116,12 +116,36 @@ export async function resolveItemImage(item, quality = 'medium') {
 
 /**
  * Upgrade common resized/thumbnail URL patterns toward originals.
+ * Conservative: never invent a URL that common CDNs 404 (e.g. ZDNet Fastly
+ * requires transform query params on /a/img/resize/… paths).
  */
 export function upgradeImageUrl(url, quality = 'large') {
   if (!url || typeof url !== 'string') return null;
   if (url.startsWith('data:')) return url;
 
-  let out = url;
+  // Meta tags often entity-encode query ampersands (&amp;) — decode first
+  // so URL/searchParams parsing sees real separators.
+  const original = decodeHtmlEntities(url);
+  let out = original;
+
+  // ZDNet / Ziff Davis Neutron: /a/img/resize/<hash>/YYYY/… → full asset /a/img/YYYY/…
+  // The hash+query form is a Fastly IO transform; stripping only query → 404.
+  // The non-resize path serves the original (verified larger payload).
+  if (quality === 'large') {
+    const zdnetFull = out.replace(
+      /\/a\/img\/resize\/[a-f0-9]{16,}\//i,
+      '/a/img/'
+    );
+    if (zdnetFull !== out) {
+      try {
+        const u = new URL(zdnetFull);
+        u.search = '';
+        out = u.href;
+      } catch {
+        out = zdnetFull.split('?')[0];
+      }
+    }
+  }
 
   // WordPress and many CMS: image-300x200.jpg → image.jpg
   out = out.replace(/[-_](\d{2,4})x(\d{2,4})(?=\.[a-z]{3,4}(?:\?|$))/i, '');
@@ -130,10 +154,19 @@ export function upgradeImageUrl(url, quality = 'large') {
   try {
     const u = new URL(out);
     if (quality === 'large') {
-      ['w', 'h', 'width', 'height', 'resize', 'fit', 'quality', 'q', 'size', 's'].forEach((k) => {
+      // Only strip clearly-thumbnail dimensions. Keep full og sizes (1200×675)
+      // and never drop `fit` — some CDNs (ZDNet) 404 without their transform set
+      // unless we already rewrote to a non-transform path above.
+      for (const k of ['w', 'h', 'width', 'height', 'size', 's']) {
+        if (!u.searchParams.has(k)) continue;
+        const v = parseInt(u.searchParams.get(k), 10);
+        if (Number.isFinite(v) && v > 0 && v < 600) u.searchParams.delete(k);
+      }
+      // quality/q are safe to drop when aiming for original bytes
+      for (const k of ['quality', 'q']) {
         if (u.searchParams.has(k)) u.searchParams.delete(k);
-      });
-      // Common CDN size path segments
+      }
+      // Common CDN size path segments (not ZDNet hash resize — handled above)
       u.pathname = u.pathname
         .replace(/\/(thumb|thumbnail|small|medium|resized)\//gi, '/')
         .replace(/\/\d+x\d+\//g, '/');
@@ -163,13 +196,15 @@ export function upgradeImageUrl(url, quality = 'large') {
   try {
     const u = new URL(out);
     if (u.pathname.includes('/_next/image') && u.searchParams.get('url')) {
-      out = decodeURIComponent(u.searchParams.get('url'));
+      out = decodeHtmlEntities(decodeURIComponent(u.searchParams.get('url')));
     }
   } catch {
     /* ignore */
   }
 
-  return out !== url ? out : quality === 'large' ? out : url;
+  // Prefer cleaned URL even when only entity-decoding changed it
+  if (out !== url) return out;
+  return quality === 'large' ? out : original;
 }
 
 export function looksLikeThumbnail(url) {
@@ -212,7 +247,7 @@ function extractImgsFromHtml(html) {
   const re = /<img[^>]+src=["']([^"']+)["'][^>]*>/gi;
   let m;
   while ((m = re.exec(html))) {
-    const src = m[1];
+    const src = decodeHtmlEntities(m[1]);
     if (src && !src.startsWith('data:') && !/1x1|pixel|spacer|emoji/i.test(src)) {
       urls.push(src);
       // srcset largest
@@ -220,7 +255,7 @@ function extractImgsFromHtml(html) {
       const srcset = full.match(/srcset=["']([^"']+)["']/i);
       if (srcset) {
         const best = largestFromSrcset(srcset[1]);
-        if (best) urls.push(best);
+        if (best) urls.push(decodeHtmlEntities(best));
       }
     }
   }
@@ -369,6 +404,7 @@ function attr(attrs, name) {
 
 function absolutize(url, base) {
   if (!url) return url;
+  // safeHttpUrl decodes HTML entities then resolves against base
   return safeHttpUrl(url, base || undefined) || null;
 }
 

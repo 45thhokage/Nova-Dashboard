@@ -117,7 +117,12 @@ export function loadConfigSync() {
       return defaults;
     }
     const parsed = JSON.parse(raw);
-    return deepMerge(defaults, parsed);
+    const merged = deepMerge(defaults, parsed);
+    // Migrate: bump perRow from 8 to 10 if stored config has lower value
+    if (merged.shortcuts?.perRow && merged.shortcuts.perRow < 10) {
+      merged.shortcuts.perRow = 10;
+    }
+    return merged;
   } catch {
     return defaults;
   }

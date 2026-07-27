@@ -313,10 +313,13 @@ function pickItemsToWarm(capped, brandNew, imageQuality) {
   for (const item of [...brandNew, ...capped]) {
     if (seen.has(item.id)) continue;
     seen.add(item.id);
-    // Re-resolve if quality changed or missing image / missing meta for medium+
+    // Re-resolve if quality changed, missing image/meta, or stored URL still
+    // has HTML entities (&amp;) from older page scrapes (ZDNet og:image etc.)
+    const dirtyEntities = item.imageUrl && /&amp;/i.test(item.imageUrl);
     if (
       item.imageQualityApplied !== q ||
       !item.imageUrl ||
+      dirtyEntities ||
       (q !== 'small' && !item.imageMeta)
     ) {
       need.push(item);

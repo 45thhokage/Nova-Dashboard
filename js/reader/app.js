@@ -225,7 +225,11 @@ function renderList() {
 }
 
 function buildItem(item, isGrid) {
-  const mediaSrc = item.imageUrl || placeholderImage(item.id || item.title);
+  // safeHttpUrl decodes HTML entities (e.g. ZDNet og:image &amp; query strings)
+  // so cached broken URLs still paint after a code update without waiting for re-warm.
+  const mediaSrc =
+    safeHttpUrl(item.imageUrl) ||
+    placeholderImage(item.id || item.title);
   const img = el('img', { alt: '', loading: 'lazy', decoding: 'async' });
   resolveImage(mediaSrc, img);
 

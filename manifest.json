@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Candy — New Tab Dashboard",
+  "name": "Nova  — New Tab Dashboard",
   "version": "1.2.1",
   "description": "A fast, dark-themed new tab dashboard with news, weather, shortcuts, feed reader, and offline-first caching.",
   "chrome_url_overrides": {

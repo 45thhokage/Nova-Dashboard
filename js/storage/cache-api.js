@@ -32,6 +32,11 @@ function blobUrlFor(sourceUrl, blob) {
  */
 export async function cacheImage(url, { cacheName = CACHE_IMAGES } = {}) {
   if (!url) return null;
+  // Normalize HTML entities in query strings before fetch/cache keying
+  // (meta-scraped og:image often has &amp; which 404s on CDNs like ZDNet).
+  url = String(url).includes('&amp;')
+    ? String(url).replace(/&amp;/gi, '&')
+    : url;
   try {
     const cache = await open(cacheName);
 
@@ -86,6 +91,9 @@ export async function cacheImage(url, { cacheName = CACHE_IMAGES } = {}) {
  */
 export async function getCachedImageUrl(url) {
   if (!url) return null;
+  url = String(url).includes('&amp;')
+    ? String(url).replace(/&amp;/gi, '&')
+    : url;
   try {
     const cache = await open(CACHE_IMAGES);
     const match = await cache.match(url);

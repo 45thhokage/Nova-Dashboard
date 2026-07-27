@@ -46,13 +46,50 @@ export function normalizeUrl(input) {
 }
 
 /**
+ * Decode common HTML entities in attribute/text values.
+ * Critical for og:image URLs that embed &amp; in query strings (e.g. ZDNet).
+ * Literal &amp; in a fetch URL 404s; the real query separator is &.
+ */
+export function decodeHtmlEntities(input) {
+  if (input == null) return input;
+  let s = String(input);
+  // Fast path — most feed URLs are already clean
+  if (!s.includes('&')) return s;
+
+  // &amp; first (and repeatedly for light double-encoding)
+  for (let i = 0; i < 3 && /&amp;/i.test(s); i++) {
+    s = s.replace(/&amp;/gi, '&');
+  }
+  s = s
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&apos;/gi, "'")
+    .replace(/&#0*39;/g, "'")
+    .replace(/&#x([0-9a-f]+);/gi, (_, hex) => {
+      const n = parseInt(hex, 16);
+      return Number.isFinite(n) && n > 0 && n < 0x110000
+        ? String.fromCodePoint(n)
+        : _;
+    })
+    .replace(/&#(\d+);/g, (_, dec) => {
+      const n = parseInt(dec, 10);
+      return Number.isFinite(n) && n > 0 && n < 0x110000
+        ? String.fromCodePoint(n)
+        : _;
+    });
+  return s;
+}
+
+/**
  * Allow only http(s) absolute URLs. Rejects javascript:, data:, etc.
  * Optional base resolves relative feed links against the feed/site URL.
+ * Decodes HTML entities before parsing so meta-scraped image URLs work.
  * @returns {string|null}
  */
 export function safeHttpUrl(input, base) {
   if (input == null) return null;
-  const s = String(input).trim();
+  const s = decodeHtmlEntities(String(input).trim());
   if (!s) return null;
   if (/^(javascript|data|vbscript|file|blob):/i.test(s)) return null;
   try {

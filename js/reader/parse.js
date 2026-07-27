@@ -3,7 +3,7 @@
  * Normalizes into { feed, items[] }.
  */
 
-import { hostFromUrl, safeHttpUrl } from '../utils.js';
+import { hostFromUrl, safeHttpUrl, decodeHtmlEntities } from '../utils.js';
 import { collectMediaCandidates, pickFeedImage } from './images.js';
 
 /**
@@ -316,7 +316,7 @@ function findMediaUrl(item, localName) {
 function firstImgInHtml(html) {
   if (!html) return null;
   const m = String(html).match(/<img[^>]+src=["']([^"']+)["']/i);
-  return m ? m[1] : null;
+  return m ? decodeHtmlEntities(m[1]) : null;
 }
 
 /**

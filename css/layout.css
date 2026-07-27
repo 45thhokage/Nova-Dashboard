@@ -92,19 +92,25 @@
   }
 }
 
-/* Main feed area */
+/* Main feed area — extra top space so news sits lower under search/shortcuts */
 .main {
   flex: 1;
   width: 100%;
   max-width: var(--container-max);
   margin: 0 auto;
-  padding: 0 var(--container-pad) var(--space-8);
+  padding: calc(var(--space-8) + 80px) var(--container-pad) var(--space-8) calc(var(--container-pad) + 16px);
 }
 
 .feed {
   display: flex;
   flex-direction: column;
   gap: var(--space-7);
+}
+
+@media (max-width: 900px) {
+  .main {
+    padding: calc(var(--space-8) + 48px) var(--container-pad) var(--space-8);
+  }
 }
 
 /* Section band */
