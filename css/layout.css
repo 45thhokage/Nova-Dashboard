@@ -51,13 +51,14 @@
   overflow: visible;
 }
 
-/* Stocks: top-left, flush to the far left of the viewport */
+/* Stocks: top-left, flush to the far left of the content area
+   (offset by the workspace sidebar rail) */
 .header__stocks {
   position: fixed;
   top: max(12px, var(--space-4));
-  left: max(12px, var(--container-pad));
+  left: calc(max(12px, var(--container-pad)) + var(--sidebar-w, 0px));
   z-index: var(--z-header);
-  max-width: min(340px, calc(100vw - 24px));
+  max-width: min(340px, calc(100vw - 24px - var(--sidebar-w, 0px)));
   pointer-events: auto;
 }
 
@@ -78,7 +79,7 @@
   /* Stack corner widgets under each other on narrow screens, still edge-pinned */
   .header__stocks {
     top: max(8px, var(--space-3));
-    left: max(8px, var(--space-3));
+    left: calc(max(8px, var(--space-3)) + var(--sidebar-w, 0px));
     max-width: min(280px, calc(50vw - 16px));
   }
   .header__weather {

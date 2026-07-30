@@ -24,6 +24,9 @@ import { initChromeToolbar } from './ui/chrome-toolbar.js';
 import { getWeatherForRender } from './weather/weather.js';
 import { getStocksForRender } from './stocks/stocks.js';
 import { openDb } from './storage/idb.js';
+import { initWorkspaces } from './workspaces/index.js';
+import { getActiveWorkspaceId } from './workspaces/router.js';
+import { NEWPAGE_ID } from './workspaces/store.js';
 
 async function main() {
   // 1. Synchronous config — first line of app logic
@@ -57,14 +60,17 @@ async function main() {
     initFeed(),
   ]);
 
-  // 5–6. Staged reveal — core components appear together
-  const app = document.getElementById('app');
-  app?.classList.add('is-ready');
+  // 5–6. Workspace system — sidebar + hash router. The router activates
+  // the workspace from the URL hash and owns the staged reveal: #app only
+  // gets .is-ready while the "newpage" workspace is active.
+  initWorkspaces();
 
-  // Soft focus search after reveal
-  requestAnimationFrame(() => {
-    setTimeout(() => searchApi?.focus?.(), 200);
-  });
+  // Soft focus search after reveal — only on the dashboard workspace
+  if (getActiveWorkspaceId() === NEWPAGE_ID) {
+    requestAnimationFrame(() => {
+      setTimeout(() => searchApi?.focus?.(), 200);
+    });
+  }
 
   // Fixed chrome toolbar (handlers only — markup is already painted)
   initChromeToolbar();
@@ -119,4 +125,7 @@ main().catch((err) => {
   console.error('[candy] boot failed', err);
   // Still reveal UI so the tab isn't blank forever
   document.getElementById('app')?.classList.add('is-ready');
+  document
+    .querySelector('.workspace[data-workspace="newpage"]')
+    ?.classList.add('is-active');
 });

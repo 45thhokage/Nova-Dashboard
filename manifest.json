@@ -14,7 +14,8 @@
     "storage",
     "alarms",
     "geolocation",
-    "unlimitedStorage"
+    "unlimitedStorage",
+    "declarativeNetRequestWithHostAccess"
   ],
   "optional_permissions": [
     "tabs",
@@ -34,6 +35,15 @@
       "16": "assets/icons/icon-16.png",
       "48": "assets/icons/icon-48.png"
     }
+  },
+  "declarative_net_request": {
+    "rule_resources": [
+      {
+        "id": "iframe_rules",
+        "enabled": true,
+        "path": "rules.json"
+      }
+    ]
   },
   "web_accessible_resources": [
     {

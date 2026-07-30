@@ -43,11 +43,12 @@
         rgba(28, 27, 34, 0.92) 100%
       );
     }
-    /* Fixed chrome from frame 1 — no staged-reveal dependency */
+    /* Fixed chrome from frame 1 — no staged-reveal dependency.
+       Left offset accounts for the workspace sidebar rail. */
     .chrome-toolbar {
       position: fixed;
       bottom: 24px;
-      left: 24px;
+      left: calc(24px + var(--sidebar-w, 0px));
       z-index: 40;
       display: flex;
       align-items: center;
@@ -101,9 +102,32 @@
   <link rel="stylesheet" href="css/layout.css" />
   <link rel="stylesheet" href="css/components.css" />
   <link rel="stylesheet" href="css/settings.css" />
+  <link rel="stylesheet" href="css/workspaces.css" />
+  <script>
+    // Apply hidden-sidebar mode before first paint (config lives in localStorage)
+    try {
+      if (JSON.parse(localStorage.getItem('candy_config') || '{}').layout?.sidebar === false) {
+        document.documentElement.classList.add('sidebar-off');
+      }
+      // Dashboard chrome (toolbar + FABs) only paints on the New Page workspace
+      if (location.hash && location.hash !== '#newpage') {
+        document.documentElement.classList.add('chrome-off');
+      }
+    } catch (e) { /* ignore */ }
+  </script>
 </head>
 <body>
   <div id="wallpaper" aria-hidden="true"></div>
+
+  <!-- Workspace sidebar — items built by JS from the workspace store -->
+  <nav class="sidebar" id="sidebar" aria-label="Workspaces"></nav>
+
+  <!-- Workspace shells — hash router toggles .is-active; inactive
+       workspaces stay mounted (display:none) so iframes keep state -->
+  <div class="workspaces" id="workspaces">
+    <!-- New Page workspace: the existing dashboard -->
+    <div class="workspace" data-workspace="newpage">
+      <div class="workspace__inner">
 
   <div id="app" class="app">
     <!-- Corner widgets: fixed to viewport edges; inside #app for staged reveal -->
@@ -135,6 +159,25 @@
     <main class="main" id="main">
       <div class="feed" id="feed-root"></div>
     </main>
+  </div>
+
+      </div>
+    </div>
+
+    <!-- Trending workspace: ranked trend list + embedded source pages -->
+    <div class="workspace" data-workspace="trending">
+      <div class="workspace__inner" id="wsroot-trending"></div>
+    </div>
+
+    <!-- AI Chat workspace: embedded AI chat page grid -->
+    <div class="workspace" data-workspace="ai-chat">
+      <div class="workspace__inner" id="wsroot-ai-chat"></div>
+    </div>
+
+    <!-- AI Audio/Video workspace: embedded media pages with type tabs -->
+    <div class="workspace" data-workspace="ai-audio-video">
+      <div class="workspace__inner" id="wsroot-ai-audio-video"></div>
+    </div>
   </div>
 
   <!-- Fixed chrome — outside #app so it paints on frame 1 (no staged-reveal fade) -->

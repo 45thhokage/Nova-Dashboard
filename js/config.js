@@ -95,6 +95,15 @@ export function createDefaultConfig() {
       pageSize: 12,
     },
     weatherCacheTtlMinutes: 10,
+    /** Layout — workspace sidebar visibility */
+    layout: {
+      sidebar: true,
+    },
+    /** Workspace system — user-created workspaces + page overrides */
+    workspaces: {
+      custom: [],
+      pages: {},
+    },
     /** Quick-search overlay — local sources need optional permissions */
     quickSearch: {
       searchTabs: false,

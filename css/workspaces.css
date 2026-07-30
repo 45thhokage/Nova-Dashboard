@@ -1,0 +1,622 @@
+/* ────────────────────────────────────────────────────────────
+   Workspaces — sidebar navigation, workspace shells, embedded
+   iframe page grids, and preset workspaces.
+   All colors / spacing / radius / motion come from tokens.css.
+   ──────────────────────────────────────────────────────────── */
+
+/* Hide-sidebar mode: zero the effective offset everywhere */
+:root.sidebar-off {
+  --sidebar-w: 0px;
+}
+:root.sidebar-off .sidebar {
+  display: none;
+}
+
+/* Dashboard chrome (bottom-left toolbar + bottom-right FABs) is only
+   shown on the New Page workspace — it fades away everywhere else */
+.chrome-toolbar,
+.fab-cluster {
+  transition: opacity var(--dur-med) var(--ease-out),
+    transform var(--dur-med) var(--ease-out),
+    visibility var(--dur-med) var(--ease-out);
+}
+
+:root.chrome-off .chrome-toolbar,
+:root.chrome-off .fab-cluster {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(8px);
+}
+
+/* ── Sidebar ─────────────────────────────────────────────── */
+
+.sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  z-index: var(--z-sidebar);
+  width: var(--sidebar-w-collapsed);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-2);
+  background: var(--bg-glass-strong);
+  border-right: 1px solid var(--border);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  overflow: hidden;
+  transition: width var(--dur-med) var(--ease-out),
+    box-shadow var(--dur-med) var(--ease-out);
+}
+
+/* Hover / keyboard focus expands as an overlay — content keeps
+   its collapsed-width offset, so layouts never reflow */
+.sidebar:hover,
+.sidebar:focus-within {
+  width: var(--sidebar-w-expanded);
+  box-shadow: var(--shadow-lg);
+}
+
+.sidebar__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.sidebar__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: 48px;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  white-space: nowrap;
+  text-align: left;
+  transition: background var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
+}
+
+.sidebar__item:hover {
+  background: var(--bg-surface-hover);
+  color: var(--text-primary);
+}
+
+.sidebar__item.is-active {
+  background: var(--accent-muted);
+  color: var(--accent-hover);
+}
+
+.sidebar__icon {
+  flex: 0 0 24px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sidebar__label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: var(--font-sm);
+  font-weight: var(--weight-medium);
+  opacity: 0;
+  transition: opacity var(--dur-med) var(--ease-out);
+}
+
+.sidebar:hover .sidebar__label,
+.sidebar:focus-within .sidebar__label {
+  opacity: 1;
+}
+
+.sidebar__spacer {
+  flex: 1;
+}
+
+.sidebar__divider {
+  height: 1px;
+  margin: var(--space-2) var(--space-3);
+  background: var(--border);
+  flex-shrink: 0;
+}
+
+/* ── Workspace shells ────────────────────────────────────── */
+
+.workspaces {
+  position: relative;
+  z-index: var(--z-app);
+}
+
+.workspace {
+  display: none;
+  margin-left: var(--sidebar-w);
+  min-height: 100vh;
+}
+
+.workspace.is-active {
+  display: block;
+}
+
+.workspace__inner {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Workspace header (title + page management) ──────────── */
+
+.ws-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-4) 0;
+}
+
+.ws-header__left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.ws-header__title {
+  font-size: var(--font-xl);
+  font-weight: var(--weight-bold);
+  letter-spacing: -0.02em;
+  line-height: var(--lh-tight);
+}
+
+.ws-header__count {
+  font-size: var(--font-xs);
+  color: var(--text-tertiary);
+  background: var(--bg-glass);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  padding: 2px 10px;
+}
+
+.ws-header__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* Inline "add page" form */
+.ws-addform {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-3) var(--space-4) 0;
+}
+
+.ws-addform .field__input,
+.ws-addform .field__select {
+  width: auto;
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--font-sm);
+}
+
+.ws-addform__url {
+  flex: 1;
+  min-width: 220px;
+}
+
+.ws-addform__title {
+  flex: 0 1 180px;
+}
+
+.ws-addform[hidden] {
+  display: none;
+}
+
+/* ── Page grid + iframe containers ───────────────────────── */
+
+.page-grid {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: var(--space-4);
+  padding: var(--space-4);
+}
+
+.iframe-container {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 440px;
+  min-width: 320px;
+  /* Default panel height — 2× the viewport-fit height */
+  height: calc((100vh - 150px) * 2);
+  min-height: 420px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+  transition: border-color var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out);
+}
+
+.iframe-container:hover {
+  border-color: rgba(124, 106, 247, 0.35);
+}
+
+.iframe-container.is-dragging {
+  opacity: 0.45;
+}
+
+.iframe-container.is-drag-over {
+  outline: 2px dashed var(--accent);
+  outline-offset: 2px;
+}
+
+.iframe-container.is-filtered {
+  display: none;
+}
+
+/* Container chrome bar */
+.iframe-container__bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
+  flex: 0 0 auto;
+  cursor: grab;
+}
+
+.iframe-container__bar:active {
+  cursor: grabbing;
+}
+
+.iframe-container__grip {
+  display: flex;
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
+
+.iframe-container__favicon {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.iframe-container__title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--font-sm);
+  font-weight: var(--weight-medium);
+}
+
+.iframe-container__host {
+  font-size: var(--font-xs);
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+
+.iframe-container__btn {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+  transition: background var(--dur-fast), color var(--dur-fast);
+}
+
+.iframe-container__btn:hover {
+  background: var(--bg-surface-hover);
+  color: var(--text-primary);
+}
+
+.iframe-container__btn--danger:hover {
+  background: rgba(255, 107, 107, 0.15);
+  color: var(--danger);
+}
+
+/* ── Hover overlay — contextual panel controls ─────────── */
+/* Floats over the frame; only visible while the container is hovered
+   (or keyboard-focused), so panels stay clutter-free by default. */
+
+.iframe-container__overlay {
+  position: absolute;
+  top: var(--space-2);
+  left: 50%;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 6px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-md);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translate(-50%, -6px);
+  transition: opacity var(--dur-med) var(--ease-out),
+    transform var(--dur-med) var(--ease-out),
+    visibility var(--dur-med) var(--ease-out);
+}
+
+.iframe-container:hover .iframe-container__overlay,
+.iframe-container:focus-within .iframe-container__overlay {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translate(-50%, 0);
+}
+
+/* ── Inline URL editor row (per panel) ──────────────────── */
+
+.iframe-container__urlform {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
+  flex: 0 0 auto;
+}
+
+.iframe-container__urlform[hidden] {
+  display: none;
+}
+
+.iframe-container__urlinput {
+  flex: 1;
+  min-width: 0;
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--font-sm);
+}
+
+/* Frame area — iframe fills it completely */
+.iframe-container__frame {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+.iframe-container__frame iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  display: block;
+  background: var(--bg-surface);
+}
+
+/* Loading state */
+.iframe-loader {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  background: var(--bg-elevated);
+  color: var(--text-tertiary);
+  font-size: var(--font-sm);
+  transition: opacity var(--dur-med) var(--ease-out),
+    visibility var(--dur-med) var(--ease-out);
+}
+
+.iframe-loader.is-done {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.iframe-loader__spinner {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 3px solid var(--border-strong);
+  border-top-color: var(--accent);
+  animation: ws-spin 0.8s linear infinite;
+}
+
+@keyframes ws_spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.iframe-loader__hint {
+  display: none;
+  max-width: 80%;
+  text-align: center;
+}
+
+.iframe-loader.is-slow .iframe-loader__hint {
+  display: block;
+}
+
+/* Resize handle (right edge — width) */
+.iframe-container__resize {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: ew-resize;
+  z-index: 2;
+  background: transparent;
+  transition: background var(--dur-fast);
+}
+
+.iframe-container__resize:hover,
+.iframe-container.is-resizing .iframe-container__resize {
+  background: var(--accent-muted);
+}
+
+/* Resize handle (bottom edge — height) */
+.iframe-container__resize-v {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 6px;
+  cursor: ns-resize;
+  z-index: 2;
+  background: transparent;
+  transition: background var(--dur-fast);
+}
+
+.iframe-container__resize-v:hover,
+.iframe-container.is-resizing .iframe-container__resize-v {
+  background: var(--accent-muted);
+}
+
+.iframe-container.is-resizing {
+  box-shadow: var(--shadow-lg);
+}
+
+/* Media variant — shorter cards */
+.page-grid--media .iframe-container {
+  flex: 1 1 380px;
+  min-width: 300px;
+  height: 960px;
+  min-height: 360px;
+}
+
+/* Compact variant (trending sources) */
+.page-grid--compact .iframe-container {
+  flex: 1 1 380px;
+  min-width: 300px;
+  height: 840px;
+  min-height: 320px;
+}
+
+/* Type badge on media cards */
+.iframe-container__type {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--font-xs);
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-muted);
+  color: var(--accent-hover);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* ── Resource monitor (pause / resume panels) ─────────── */
+
+.ws-monitor {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ws-monitor.is-paused {
+  background: var(--accent-muted);
+  color: var(--accent-hover);
+  border-color: rgba(124, 106, 247, 0.35);
+}
+
+/* Paused overlay — shown while the panel's document is unloaded */
+.iframe-paused {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  background: var(--bg-elevated);
+  color: var(--text-tertiary);
+  font-size: var(--font-sm);
+  text-align: center;
+}
+
+.iframe-container.is-paused .iframe-paused {
+  display: flex;
+}
+
+.iframe-container.is-paused {
+  border-color: var(--border);
+}
+
+.iframe-paused__icon {
+  display: flex;
+  color: var(--text-secondary);
+}
+
+.iframe-paused__title {
+  font-size: var(--font-md);
+  font-weight: var(--weight-semibold);
+  color: var(--text-secondary);
+}
+
+.iframe-paused__hint {
+  font-size: var(--font-xs);
+  max-width: 340px;
+  line-height: var(--lh-relaxed);
+}
+
+.iframe-paused .btn {
+  margin-top: var(--space-2);
+}
+
+/* ── Filter tabs (AI Audio/Video) ────────────────────────── */
+
+.ws-tabs {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.ws-tab {
+  padding: 6px 14px;
+  border-radius: var(--radius-pill);
+  font-size: var(--font-sm);
+  font-weight: var(--weight-medium);
+  color: var(--text-secondary);
+  border: 1px solid transparent;
+  transition: background var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out);
+}
+
+.ws-tab:hover {
+  background: var(--bg-surface-hover);
+  color: var(--text-primary);
+}
+
+.ws-tab.is-active {
+  background: var(--accent-muted);
+  color: var(--accent-hover);
+  border-color: rgba(124, 106, 247, 0.35);
+}
+
+/* ── Reduced motion ──────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar,
+  .sidebar__label,
+  .iframe-container {
+    transition: none;
+  }
+}

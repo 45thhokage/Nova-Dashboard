@@ -1071,11 +1071,12 @@
   display: block;
 }
 
-/* Chrome quick-access toolbar — fixed, no entrance animation, no heavy blur */
+/* Chrome quick-access toolbar — fixed, no entrance animation, no heavy blur.
+   Left offset accounts for the workspace sidebar rail. */
 .chrome-toolbar {
   position: fixed;
   bottom: var(--space-5);
-  left: var(--space-5);
+  left: calc(var(--space-5) + var(--sidebar-w, 0px));
   z-index: var(--z-fab);
   display: flex;
   align-items: center;
@@ -1170,7 +1171,7 @@
 
 @media (max-width: 480px) {
   .chrome-toolbar {
-    left: var(--space-3);
+    left: calc(var(--space-3) + var(--sidebar-w, 0px));
     bottom: var(--space-3);
     padding: 4px 6px;
   }

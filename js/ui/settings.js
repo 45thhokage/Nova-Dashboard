@@ -35,6 +35,13 @@ import {
   refreshStocksInBackground,
 } from '../stocks/stocks.js';
 import { applyWallpaper, saveCustomWallpaper, clearCustomWallpaper } from '../wallpaper.js';
+import {
+  createWorkspace,
+  deleteWorkspace,
+  getCustomWorkspaces,
+  getPages,
+} from '../workspaces/store.js';
+import { PICKABLE_ICONS, icon as wsIcon } from '../workspaces/icons.js';
 
 const ABSTRACT_WALLPAPERS = [
   { id: 'abs-1', label: 'Aurora', value: 'assets/wallpapers/abstract-1.svg' },
@@ -86,6 +93,9 @@ export function initSettings({ onChange } = {}) {
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && drawer.classList.contains('is-open')) close();
   });
+
+  // The workspace sidebar's Settings entry opens this drawer
+  window.addEventListener('candy:open-settings', open);
 }
 
 function renderBody(body, onChange) {
@@ -94,6 +104,28 @@ function renderBody(body, onChange) {
 
   // ── Wallpapers ────────────────────────────────────────
   body.append(section('Wallpapers', null, buildWallpaperGrid(cfg, onChange)));
+
+  // ── Layout & Sidebar ─────────────────────────────
+  body.append(
+    section(
+      'Layout & Sidebar',
+      'The workspace sidebar stays a slim icon rail and expands on hover.',
+      rowToggle('Show sidebar', cfg.layout?.sidebar !== false, (v) => {
+        updateConfig((c) => ({ ...c, layout: { ...(c.layout || {}), sidebar: v } }));
+        document.documentElement.classList.toggle('sidebar-off', !v);
+        onChange?.('layout');
+      })
+    )
+  );
+
+  // ── Workspaces ──────────────────────────────
+  body.append(
+    section(
+      'Workspaces',
+      'Create extra workspaces that embed external pages. Pages are managed inside each workspace — add, remove, drag to reorder, drag the right edge to resize.',
+      buildWorkspacesSettings(cfg, onChange)
+    )
+  );
 
   // ── Shortcuts ─────────────────────────────────────────
   const shortcutsBlock = el('div');
@@ -294,6 +326,99 @@ async function reconcilePermissionToggle(row, permName, configKey, noteEl) {
   } catch {
     /* ignore outside extension context */
   }
+}
+
+// ── Workspaces (custom workspace manager) ─────────────
+
+function buildWorkspacesSettings(cfg, onChange) {
+  const wrap = el('div');
+
+  // Create form: name + icon
+  const titleInput = el('input', {
+    type: 'text',
+    className: 'field__input',
+    placeholder: 'Workspace name',
+    maxlength: '40',
+    style: { flex: '1', minWidth: '120px' },
+  });
+  const iconSelect = el('select', { className: 'field__select', style: { width: 'auto' } });
+  for (const name of PICKABLE_ICONS) {
+    iconSelect.append(el('option', { value: name, text: name }));
+  }
+  const createBtn = el('button', {
+    type: 'submit',
+    className: 'btn btn--sm btn--primary',
+    text: 'Create',
+  });
+  const form = el(
+    'form',
+    {
+      autocomplete: 'off',
+      style: { display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' },
+    },
+    [titleInput, iconSelect, createBtn]
+  );
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    createWorkspace({ title: titleInput.value, icon: iconSelect.value });
+    titleInput.value = '';
+    // Sidebar + router pick up the new workspace; re-render this panel
+    window.dispatchEvent(new CustomEvent('candy:workspaces-changed'));
+    renderBody(document.getElementById('settings-body'), onChange);
+  });
+  wrap.append(form);
+
+  // Existing custom workspaces
+  const customs = getCustomWorkspaces();
+  if (!customs.length) {
+    wrap.append(
+      el('p', {
+        className: 'settings-section__desc',
+        style: { marginTop: '12px' },
+        text: 'No custom workspaces yet — create one above.',
+      })
+    );
+    return wrap;
+  }
+
+  const list = el('div', { style: { marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '6px' } });
+  for (const ws of customs) {
+    const row = el('div', {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: '10px',
+        padding: '8px 12px',
+        background: 'var(--bg-surface)',
+        border: '1px solid var(--border)',
+        borderRadius: 'var(--radius-md)',
+      },
+    });
+    row.append(
+      el('span', { style: { display: 'flex', color: 'var(--text-secondary)' }, html: wsIcon(ws.icon, 18) }),
+      el('span', { style: { flex: '1', fontSize: 'var(--font-sm)', fontWeight: 'var(--weight-medium)' }, text: ws.title }),
+      el('span', {
+        style: { fontSize: 'var(--font-xs)', color: 'var(--text-tertiary)' },
+        text: `${getPages(ws.id).length} pages`,
+      })
+    );
+    const del = el('button', {
+      type: 'button',
+      className: 'btn btn--sm btn--danger',
+      text: 'Delete',
+    });
+    del.addEventListener('click', () => {
+      if (!confirm(`Delete the “${ws.title}” workspace? Its embedded pages are removed with it.`)) return;
+      deleteWorkspace(ws.id);
+      // Router falls back to New Page if this workspace was active
+      window.dispatchEvent(new CustomEvent('candy:workspaces-changed'));
+      renderBody(document.getElementById('settings-body'), onChange);
+    });
+    row.append(del);
+    list.append(row);
+  }
+  wrap.append(list);
+  return wrap;
 }
 
 function section(title, desc, content) {

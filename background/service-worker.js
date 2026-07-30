@@ -104,11 +104,79 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
 
 chrome.runtime.onInstalled.addListener(() => {
   ensureAlarms();
+  ensureStaticRuleset();
+  ensureEmbeddingRules();
 });
 
 chrome.runtime.onStartup.addListener(() => {
   ensureAlarms();
+  ensureStaticRuleset();
+  ensureEmbeddingRules();
 });
+
+// ── Iframe embedding (declarativeNetRequest) ──────────────
+//
+// Workspace pages embed external sites (ChatGPT, Claude, Suno…) in iframes.
+// Many of them ship X-Frame-Options / CSP frame-ancestors headers that block
+// framing. We strip those response headers for sub_frame loads only.
+//
+// Two layers, both scoped to sub_frame so top-level navigations, scripts,
+// images and API calls stay untouched:
+//   1. A static ruleset (rules.json → "iframe_rules") declared in the
+//      manifest — active from the moment the extension loads.
+//   2. A dynamic rule re-asserted on every worker spin-up as a fallback, so
+//      embedding keeps working even if the static ruleset is ever disabled.
+
+const STATIC_RULESET_ID = 'iframe_rules';
+const EMBED_RULE_ID = 50001;
+
+// Verify the manifest's static ruleset is enabled; re-enable it if not.
+async function ensureStaticRuleset() {
+  try {
+    if (!chrome.declarativeNetRequest?.getEnabledRulesets) return;
+    const enabled = await chrome.declarativeNetRequest.getEnabledRulesets();
+    if (!enabled.includes(STATIC_RULESET_ID)) {
+      await chrome.declarativeNetRequest.updateEnabledRulesets({
+        enableRulesetIds: [STATIC_RULESET_ID],
+      });
+    }
+  } catch (e) {
+    console.warn('[candy sw] static ruleset check failed', e);
+  }
+}
+
+async function ensureEmbeddingRules() {
+  try {
+    if (!chrome.declarativeNetRequest?.updateDynamicRules) return;
+    await chrome.declarativeNetRequest.updateDynamicRules({
+      removeRuleIds: [EMBED_RULE_ID],
+      addRules: [
+        {
+          id: EMBED_RULE_ID,
+          priority: 1,
+          action: {
+            type: 'modifyHeaders',
+            responseHeaders: [
+              { header: 'x-frame-options', operation: 'remove' },
+              { header: 'content-security-policy', operation: 'remove' },
+              { header: 'content-security-policy-report-only', operation: 'remove' },
+            ],
+          },
+          condition: {
+            // Only iframe loads — top-level navigation headers stay untouched.
+            resourceTypes: ['sub_frame'],
+          },
+        },
+      ],
+    });
+  } catch (e) {
+    console.warn('[candy sw] embedding rules update failed', e);
+  }
+}
+
+// Re-assert rules whenever the worker spins up (MV3 workers are ephemeral).
+ensureStaticRuleset();
+ensureEmbeddingRules();
 
 async function ensureAlarms() {
   let minutes = DEFAULT_WEATHER_MINUTES;

@@ -56,6 +56,12 @@
   --container-pad: clamp(16px, 4vw, 48px);
   --header-gap: var(--space-5);
 
+  /* Sidebar / workspaces */
+  --sidebar-w-collapsed: 72px;
+  --sidebar-w-expanded: 220px;
+  /* Effective offset for content & fixed chrome; zeroed via .sidebar-off */
+  --sidebar-w: var(--sidebar-w-collapsed);
+
   /* Radius */
   --radius-sm: 8px;
   --radius-md: 12px;
@@ -81,6 +87,7 @@
   --z-wallpaper: 0;
   --z-app: 1;
   --z-header: 10;
+  --z-sidebar: 45;
   --z-fab: 40;
   --z-popover: 50;
   --z-overlay: 60;
